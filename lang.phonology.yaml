@@ -1,0 +1,196 @@
+meta:
+  name: "Custom Language"
+  description: >
+    CV-only language. 14 consonants, 5 vowels, 8 diphthongs (~12% rate).
+    Word-initial inventory restricted to k s t d n h m r l.
+    b/p globally halved; m/n/h boosted 1.2× and l/r boosted 1.3× in
+    non-initial position. Word-final a/o/e boosted 1.2×.
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phoneme inventory
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# b and p are given base weight 0.5 so they appear half as often everywhere
+# they are not already forbidden by a position rule.
+
+phonemes:
+  # ── Consonants ──────────────────────────────────────────────────────────────
+  k:  { features: [velar,    stop,      voiceless], weight: 1.0 }
+  g:  { features: [velar,    stop,      voiced   ], weight: 1.0 }
+  s:  { features: [alveolar, fricative, voiceless], weight: 1.0 }
+  z:  { features: [alveolar, fricative, voiced   ], weight: 1.0 }
+  t:  { features: [alveolar, stop,      voiceless], weight: 1.0 }
+  d:  { features: [alveolar, stop,      voiced   ], weight: 1.0 }
+  n:  { features: [alveolar, nasal               ], weight: 1.0 }
+  h:  { features: [glottal,  fricative, voiceless], weight: 1.0 }
+  b:  { features: [labial,   stop,      voiced   ], weight: 0.5 }
+  p:  { features: [labial,   stop,      voiceless], weight: 0.5 }
+  m:  { features: [labial,   nasal               ], weight: 1.0 }
+  r:  { features: [alveolar, rhotic              ], weight: 1.0 }
+  v:  { features: [labial,   fricative, voiced   ], weight: 1.0 }
+  l:  { features: [alveolar, lateral             ], weight: 1.0 }
+  # ── Vowels ───────────────────────────────────────────────────────────────────
+  a:  { features: [vowel, low,  central], weight: 1.0 }
+  e:  { features: [vowel, mid,  front  ], weight: 1.0 }
+  i:  { features: [vowel, high, front  ], weight: 1.0 }
+  o:  { features: [vowel, mid,  back   ], weight: 1.0 }
+  u:  { features: [vowel, high, back   ], weight: 1.0 }
+  # ── Diphthongs ───────────────────────────────────────────────────────────────
+  ao: { features: [diphthong], weight: 1.0 }
+  ai: { features: [diphthong], weight: 1.0 }
+  au: { features: [diphthong], weight: 1.0 }
+  ei: { features: [diphthong], weight: 1.0 }
+  ia: { features: [diphthong], weight: 1.0 }
+  io: { features: [diphthong], weight: 1.0 }
+  iu: { features: [diphthong], weight: 1.0 }
+  oe: { features: [diphthong], weight: 1.0 }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Named classes
+# ══════════════════════════════════════════════════════════════════════════════
+
+classes:
+  consonant: [k, g, s, z, t, d, n, h, b, p, m, r, v, l]
+  vowel:     [a, e, i, o, u]
+  diphthong: [ao, ai, au, ei, ia, io, iu, oe]
+  nucleus:   [$vowel, $diphthong]
+
+  # Phonological sub-classes (used in features / future rules)
+  nasal:     [m, n]
+  liquid:    [l, r]
+  labial:    [p, b, m, v]
+  alveolar:  [t, d, s, z, n, l, r]
+  velar:     [k, g]
+  voiced:    [g, z, d, b, m, n, r, v, l]
+  voiceless: [k, s, t, h, p]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Slots
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# Diphthong rate calculation
+# --------------------------
+# We want  P(diphthong chosen) ≈ 0.12  for any V slot.
+#   8 diphthongs × w_d
+#  ───────────────────────────────  =  0.12
+#  5 vowels × 1.0  +  8 × w_d
+#
+#  Solving:  w_d = (0.12 × 5) / (8 × (1 − 0.12)) ≈ 0.0852
+#
+# We express this via subclass_weights which multiply on top of each
+# phoneme's base weight (all 1.0 here).
+
+slots:
+  C:
+    name: consonant
+    draws_from: [$consonant]
+    is_nucleus: false
+
+  V:
+    name: nucleus
+    draws_from: [$nucleus]
+    is_nucleus: true
+    subclass_weights:
+      $vowel:     1.0     # plain vowels at full base weight
+      $diphthong: 0.085   # ≈ 12 % of all V selections will be diphthongs
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Syllable templates
+# ══════════════════════════════════════════════════════════════════════════════
+
+syllable_templates:
+  # 1-syllable words: V or CV only (word-initial position)
+  - pattern: "V"
+    weight: 1.0
+    positions: [word_initial_syllable]
+  
+  - pattern: "CV"
+    weight: 1.0
+    positions: [word_initial_syllable]
+  
+  # Multi-syllable words: CV for all non-initial syllables
+  - pattern: "CV"
+    weight: 1.0
+    positions: [non_initial]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Position rules
+# ══════════════════════════════════════════════════════════════════════════════
+
+position_rules:
+
+  # ── Word-initial consonant ───────────────────────────────────────────────────
+  # Allowed: k s t d n h m r l
+  # Forbidden: g z b p v  → weight 0.0
+  - match_positions: [word_initial]
+    match_slots: [C]
+    weights:
+      g: 0.0
+      z: 0.0
+      b: 0.0
+      p: 0.0
+      v: 0.0
+
+  # ── Consonants in first syllable (catches C in VCV pattern) ──────────────────
+  # Same restrictions as word-initial to keep VCV pattern consistent
+  # Allowed: k s t d n h m r l
+  # Forbidden: g z b p v  → weight 0.0
+  - match_positions: [word_initial_syllable]
+    match_slots: [C]
+    weights:
+      g: 0.0
+      z: 0.0
+      b: 0.0
+      p: 0.0
+      v: 0.0
+
+  # ── Non-initial consonant boosts ─────────────────────────────────────────────
+  # m n h → ×1.2  |  l r → ×1.3
+  # (b and p are already at base 0.5; no extra rule needed for them)
+  - match_positions: [non_initial]
+    match_slots: [C]
+    weights:
+      m: 1.2
+      n: 1.2
+      h: 1.2
+      l: 1.3
+      r: 1.3
+
+  # ── Word-final nucleus ───────────────────────────────────────────────────────
+  # a o e → ×1.2 in the last syllable's V slot
+  - match_positions: [word_final]
+    match_slots: [V]
+    weights:
+      a: 1.2
+      o: 1.2
+      e: 1.2
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Phonotactics  (post-generation filters)
+# ══════════════════════════════════════════════════════════════════════════════
+
+phonotactics:
+  prohibited_sequences:        []
+  required_sequences:          []
+  prohibited_class_sequences:  []
+  ocp:                         []
+  cooccurrence_prohibit:       []
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Word-level settings
+# ══════════════════════════════════════════════════════════════════════════════
+
+word:
+  syllable_distribution:
+    1: 0.15
+    2: 0.50
+    3: 0.30
+    4: 0.05
+  min_syllables: 1
+  max_syllables: 4
