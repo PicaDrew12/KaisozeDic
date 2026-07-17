@@ -1,0 +1,13 @@
+{ Exemplu: suma si produsul primelor n numere naturale }
+citeste n
+S <- 0
+P <- 1
+pentru i <- 1, n executa
+    S <- S + i
+    P <- P * i
+scrie 'Suma = ', S, ' Produs = ', P
+
+daca n % 2 = 0 atunci
+    scrie n, ' este par'
+altfel
+    scrie n, ' este impar'
